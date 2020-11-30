@@ -12,17 +12,29 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/joho/godotenv"
 	"mvdan.cc/xurls"
 )
 
-const apikey = "AAAAAAAAAAAAAAAAAAAA"
-const mqtthost = "192.168.1.83:1883"
-const brokername = "home/tweet2mqtt/alert"
+var apikey string
+var mqtthost string
+var brokername string
 
 var lastTweetId int64
 
 func main() {
 	lastTweetId = 0
+
+	// Init godotenv
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	// init params
+	apikey = os.Getenv("TWEET2MQTT_APIKEY")
+	mqtthost = os.Getenv("TWEET2MQTT_MQTT_HOST")
+	brokername = os.Getenv("TWEET2MQTT_BROKER_NAME")
 
 	// Init MQTT Connection
 	mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
@@ -79,10 +91,10 @@ func main() {
 			resultCount := int(result["meta"].(map[string]interface{})["result_count"].(float64))
 			fmt.Println("result count = " + string(resultCount))
 			if resultCount > 0 {
-				// sinceId, _ := strconv.ParseInt(result["meta"].(map[string]interface{})["newest_id"].(string), 10, 64)
-				sinceId, _ := strconv.Atoi(result["meta"].(map[string]interface{})["newest_id"].(string))
+				sinceId, _ := strconv.ParseInt(result["meta"].(map[string]interface{})["newest_id"].(string), 10, 64)
+				// sinceId, _ := strconv.Atoi(result["meta"].(map[string]interface{})["newest_id"].(string))
 				fmt.Println("Raw Since ID = " + result["meta"].(map[string]interface{})["newest_id"].(string))
-				fmt.Println("Since ID = " + strconv.Itoa(sinceId))
+				// fmt.Println("Since ID = " + strconv.Itoa(sinceId))
 				lastTweetId = int64(sinceId)
 
 				data1 := result["data"].([]interface{})[0]
