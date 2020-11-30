@@ -144,7 +144,20 @@ func parseBmkgAlert(url string, mqttclient mqtt.Client) {
 					description, _ := s.Attr("content")
 					fmt.Printf("Description field: %s\n", description)
 
-					mqttclient.Publish(brokername, 0, false, description)
+					// JSON marshall
+					emp := make(map[string]interface{})
+					emp["url"] = url
+					emp["description"] = description
+
+					// Marshal the map into a JSON string.
+					empData, err := json.Marshal(emp)
+					if err != nil {
+						fmt.Println(err.Error())
+						return
+					}
+					jsonStr := string(empData)
+
+					mqttclient.Publish(brokername, 0, false, jsonStr)
 				}
 			})
 
