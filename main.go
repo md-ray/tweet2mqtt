@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"strings"
+
 	"github.com/PuerkitoBio/goquery"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/joho/godotenv"
@@ -142,6 +144,7 @@ func parseBmkgAlert(url string, mqttclient mqtt.Client) {
 			doc.Find("meta").Each(func(i int, s *goquery.Selection) {
 				if name, _ := s.Attr("name"); name == "description" {
 					description, _ := s.Attr("content")
+					description = strings.Replace(description, "<br>", "\n", -1)
 					fmt.Printf("Description field: %s\n", description)
 
 					// JSON marshall
@@ -156,7 +159,6 @@ func parseBmkgAlert(url string, mqttclient mqtt.Client) {
 						return
 					}
 					jsonStr := string(empData)
-
 					mqttclient.Publish(brokername, 0, false, jsonStr)
 				}
 			})
