@@ -21,6 +21,8 @@ import (
 var apikey string
 var mqtthost string
 var brokername string
+var username string
+var password string
 
 var lastTweetId int64
 
@@ -37,6 +39,8 @@ func main() {
 	apikey = os.Getenv("TWEET2MQTT_APIKEY")
 	mqtthost = os.Getenv("TWEET2MQTT_MQTT_HOST")
 	brokername = os.Getenv("TWEET2MQTT_BROKER_NAME")
+	username = os.Getenv("TWEET2MQTT_BROKER_USERNAME")
+	password = os.Getenv("TWEET2MQTT_BROKER_PASSWORD")
 
 	// Init MQTT Connection
 	mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
@@ -46,6 +50,8 @@ func main() {
 
 	//opts := mqtt.NewClientOptions().AddBroker("tcp://test.mosquitto.org:1883") // Seems this is down at the moment
 	opts := mqtt.NewClientOptions().AddBroker(mqtthost)
+	opts.SetUsername(username)
+	opts.SetPassword(password)
 	opts.SetClientID("golang-tweet2mqtt") // Random client id
 	opts.SetPingTimeout(10 * time.Second)
 	opts.SetKeepAlive(10 * time.Second)
