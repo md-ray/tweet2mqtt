@@ -127,7 +127,7 @@ func main() {
 				rx := xurls.Relaxed
 				urlBmkgAlert := rx.FindString(datatext)
 				fmt.Println("GET URL = " + urlBmkgAlert)
-				//parseBmkgAlert(urlBmkgAlert, mqttclient)
+				parseBmkgAlert(urlBmkgAlert, mqttclient)
 
 				// Get URL
 			} else {
