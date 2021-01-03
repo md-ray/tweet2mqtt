@@ -23,10 +23,15 @@ var mqtthost string
 var brokername string
 var username string
 var password string
+var arcgisBrokername string
+var arcgisListKecs []string
 
 var lastTweetId int64
 
 func main() {
+	// Init map idKecamatan
+	var kecamatanMap map[int]int
+
 	lastTweetId = 0
 
 	// Init godotenv
@@ -39,8 +44,15 @@ func main() {
 	apikey = os.Getenv("TWEET2MQTT_APIKEY")
 	mqtthost = os.Getenv("TWEET2MQTT_MQTT_HOST")
 	brokername = os.Getenv("TWEET2MQTT_BROKER_NAME")
+	arcgisBrokername = os.Getenv("TWEET2MQTT_ARCGIS_BROKER_NAME")
 	username = os.Getenv("TWEET2MQTT_BROKER_USERNAME")
 	password = os.Getenv("TWEET2MQTT_BROKER_PASSWORD")
+	arcgisListKecs = strings.Split(os.Getenv("TWEET2MQTT_ARCGIS_IDKECS"), ",")
+	kecamatanMap = make(map[int]int)
+	for _, str := range arcgisListKecs {
+		idKec,_ := strconv.Atoi(str)
+		kecamatanMap[idKec] = 1
+	}
 
 	// Init MQTT Connection
 	mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
@@ -65,6 +77,8 @@ func main() {
 	if token := mqttclient.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error().Error())
 	}
+
+	arcGisCount := 0
 
 	for {
 		// Forever loop
@@ -113,7 +127,7 @@ func main() {
 				rx := xurls.Relaxed
 				urlBmkgAlert := rx.FindString(datatext)
 				fmt.Println("GET URL = " + urlBmkgAlert)
-				parseBmkgAlert(urlBmkgAlert, mqttclient)
+				//parseBmkgAlert(urlBmkgAlert, mqttclient)
 
 				// Get URL
 			} else {
@@ -123,6 +137,67 @@ func main() {
 			// fmt.Println("ID : " + )
 		} else {
 			fmt.Println(err)
+		}
+
+		// Query ArcGIS sensor
+		if (arcGisCount == 0) {
+			client2 := &http.Client{}
+			req2, _ := http.NewRequest("GET", "https://warningcuaca.bmkg.go.id/arcgis/rest/services/production/nowcasting___publik/MapServer/0/query?f=json&resultOffset=0&resultRecordCount=1000&where=1%3D1&outFields=*&outSR=102100&spatialRel=", nil)
+			resp2, err2 := client2.Do(req2)
+
+			if err2 == nil {
+				defer resp2.Body.Close()
+
+				resp_body2, _ := ioutil.ReadAll(resp2.Body)
+
+				var result2 map[string]interface{}
+				json.Unmarshal(resp_body2, &result2)
+
+				result2array := result2["features"].([]interface{})
+
+				fmt.Println("jumlah array")
+				fmt.Println(len(result2array))
+				if (len(result2array) > 0) {
+					for _, s := range result2array {
+						//fmt.Println(i, s)
+
+						attributes := s.(map[string]interface{})["attributes"].(map[string]interface{})
+						idKec := int(attributes["idkecamatan"].(float64))
+						if _, ok := kecamatanMap[idKec]; ok {
+							fmt.Println(idKec)
+									// JSON marshall
+							emp := make(map[string]interface{})
+							emp["idkecamatan"] = idKec
+							emp["kecamatan"] = attributes["namakecamatan"].(string)
+							emp["tipearea"] = attributes["tipearea"].(string)
+							emp["kategoridampak"] = attributes["kategoridampak"].(string)
+							emp["waktuberlaku"] = attributes["waktuberlaku"].(float64)
+							emp["waktuberakhir"] = attributes["waktuberakhir"].(float64)
+
+							// Marshal the map into a JSON string.
+							empData, err := json.Marshal(emp)
+							if err != nil {
+								fmt.Println(err.Error())
+								return
+							}
+							jsonStr := string(empData)
+							mqttclient.Publish(arcgisBrokername + "/" + strconv.Itoa(idKec), 0, false, jsonStr)
+						}
+						// fmt.Println(attributes["namakecamatan"])
+					}
+				}
+					// Get URL
+				} else {
+					fmt.Println("No new entry")
+				}
+			
+		}
+
+		arcGisCount++
+		if (arcGisCount > 10) {
+			arcGisCount = 0
+
+			
 		}
 
 		fmt.Println("Sleeping ...")
